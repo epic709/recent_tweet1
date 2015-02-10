@@ -1,22 +1,28 @@
 get '/' do
   # Look in app/views/index.erb
-
-# client = Twitter::REST::Client.new do |config|
-#   config.consumer_key        = "GNJdHPoOPsqOOhdyILWPq49ou"
-#   config.consumer_secret     = "Hobvm4TLYbUtsaWf6LoVHU5J8Tlq2EWbzN7OrZ7yjwuE15C1QS"
-#   config.access_token        = "718167336-uguDm3JUp2iSDiHiGjYSlRTzRF2YL3TTuQyyUqS0"
-#   config.access_token_secret = "W3wPBhcpBpXHlxIxF41848cvMGxKt8ijsQlxHcyHHxrXg"
-# end
-
-array = CLIENT.user_timeline('LOHwillie', options = {count:5})
-array.each do |t|
-  p t.text
+  erb :index
 end
 
-# topics = ["coffee", "tea"]
-# client.filter(:track => topics.join(",")) do |obj|
-#     puts obj.text if obj.is_a?(Twitter::Tweet)
-#   end
+get '/:username' do
+  # Look in app/views/index.erb
+
+  @user = Twitteruser.find_by_twitter_id(params[:username])
+  max_id = CLIENT.user(params[:username]).attrs[:status][:id]
+  if @user.tweets == []
+    since_id = 1
+  else
+    since_id = @user.tweets.select('MAX(unique_id) AS since_id').first.since_id
+  end
+
+  if @user.tweets_stale?(since_id, max_id)
+    # User#fetch_tweets! should make an API call
+    # and populate the tweets table
+    # Future requests should read from the tweets table
+    # instead of making an API call
+    @user.fetch_tweets!(since_id, max_id)
+  end
+
+  @array = @user.tweets.order('tweeted_time desc')
 
   erb :index
 end
